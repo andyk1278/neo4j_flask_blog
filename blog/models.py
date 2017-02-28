@@ -5,9 +5,12 @@ import uuid
 import os
 from blog import app
 
-url = os.environ.get('GRAPHNEDB_URL', 'http://localhost:7474')
-username = os.environ.get('neo4j')
-password = os.environ.get('password')
+port = int(os.environ.get('PORT', 5000))
+app.secret_key = os.urandom(24)
+app.run(host='0.0.0.0', port=port)
+url = os.environ.get('GRAPHENEDB_URL', 'http://localhost:7474')
+#username = os.environ.get('neo4j')
+#password = os.environ.get('password')
 
 graph = Graph(url + '/db/data/')
 
