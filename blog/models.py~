@@ -2,15 +2,27 @@ from py2neo import Graph, Node, Relationship
 from passlib.hash import bcrypt
 from datetime import datetime
 import uuid
-import os
-from blog import app
 
-url = os.environ.get('GRAPHNEDB_URL', 'http://localhost:7474')
-username = os.environ.get('neo4j')
-password = os.environ.get('password')
+graph = Graph()
 
-graph = Graph(url + '/db/data/')
+def timestamp():
+    epoch = datetime.utcfromtimestamp(0)
+    now = datetime.now()
+    delta = now - epoch
+    return delta.total_seconds()
 
+def date():
+    return datetime.now().strftime('%Y-%m-%d')
+
+def get_todays_recent_posts():
+    query = """
+    MATCH (user:User)-[:PUBLISHED]->(post:Post)<-[:TAGGED]-(tag:Tag)
+    WHERE post.date = {today}
+    RETURN user.username AS username, post, COLLECT(tag.name) AS tags
+    ORDER BY post.timestamp DESC LIMIT 5
+    """
+
+    return graph.cypher.execute(query, today=date())
 
 class User:
     def __init__(self, username):
@@ -95,23 +107,3 @@ class User:
         """
 
         return graph.cypher.execute(query, they=other.username, you=self.username)[0]
-
-
-def timestamp():
-    epoch = datetime.utcfromtimestamp(0)
-    now = datetime.now()
-    delta = now - epoch
-    return delta.total_seconds()
-
-def date():
-    return datetime.now().strftime('%Y-%m-%d')
-
-def get_todays_recent_posts():
-    query = """
-    MATCH (user:User)-[:PUBLISHED]->(post:Post)<-[:TAGGED]-(tag:Tag)
-    WHERE post.date = {today}
-    RETURN user.username AS username, post, COLLECT(tag.name) AS tags
-    ORDER BY post.timestamp DESC LIMIT 5
-    """
-
-    return graph.cypher.execute(query, today=date())
