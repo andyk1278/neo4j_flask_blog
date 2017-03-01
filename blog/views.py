@@ -1,7 +1,13 @@
 from .models import User, get_todays_recent_posts
 from flask import Flask, request, session , redirect, url_for, render_template, flash
-import pdb; pdb.set_trace()
+#import pdb; pdb.set_trace()
 
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    posts = get_todays_recent_posts()
+    return render_template('index.html', posts=posts)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -34,7 +40,7 @@ def login():
             session['username'] = username
             flash('Logged in.')
             return redirect(url_for('index'))
-        return render_template('login.html')
+    return render_template('login.html')
 
 @app.route('/add_post', methods=['POST'])
 def add_post():
@@ -54,7 +60,7 @@ def add_post():
 
 @app.route('/like_post/<post_id>')
 def like_post(post_id):
-    username = session.get_recent_posts('username')
+    username = session.get('username')
 
     if not username:
         flash('You must be logged in to like a post.')

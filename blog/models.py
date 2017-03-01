@@ -1,19 +1,18 @@
 from py2neo import Graph, Node, Relationship
 from passlib.hash import bcrypt
 from datetime import datetime
-import uuid
 import os
-from blog import app
+import uuid
 
-port = int(os.environ.get('PORT', 5000))
-app.secret_key = os.urandom(24)
-app.run(host='0.0.0.0', port=port)
-url = os.environ.get('GRAPHENEDB_URL', 'http://localhost:7474')
+#url = os.environ.get('GRAPHENEDB_URL', 'http://localhost:7474')
 #username = os.environ.get('neo4j')
 #password = os.environ.get('password')
 
-graph = Graph(url + '/db/data/')
-
+#graph = Graph(url + '/db/data/')
+url = os.environ.get('GRAPHENEDB_URL','localhost:7474')
+username = os.environ.get('NEO4J_USERNAME')
+password = os.environ.get('NEO4J_PASSWORD')
+graph =  Graph(url + '/db/data/')
 
 class User:
     def __init__(self, username):
@@ -52,52 +51,57 @@ class User:
         graph.create(rel)
 
         tags  = [x.strip() for x in tags.lower().split(',')]
-        for t in set(tags):
-            tag = graph.merge_one("Tag", "name", t)
+        for name in tags:
+            tag = Node('Tag', name=name)
+            graph.merge(tag)
+
             rel = Relationship(tag, "TAGGED", post)
             graph.create(rel)
 
+
+
+
     def get_recent_posts(self):
-        query = """
+        query = '''
         MATCH (user:User)-[:PUBLISHED]->(post:Post)<-[:TAGGED]-(tag:Tag)
         WHERE user.username = {username}
         RETURN post, COLLECT(tag.name) AS tags
         ORDER BY post.timestamp DESC LIMIT 5
-        """
-        return graph.cypher.execute(query, username=self.username)
+        '''
+        return graph.run(query, username=self.username)
 
     def like_post(self, post_id):
         user = self.find()
         post = graph.find_one("Post", "id", post_id)
-        graph.create_unique(Relationship(user, "LIKED", post))
+        graph.create(Relationship(user, "LIKED", post))
 
     def get_similar_users(self):
         # Find three users who are most similar to the logged-in user
         # based on tags they've both blogged about.
-        query = """
+        query = '''
         MATCH (you:User)-[:PUBLISHED]->(:Post)<-[:TAGGED]-(tag:Tag),
               (they:User)-[:PUBLISHED]->(:Post)<-[:TAGGED]-(tag)
         WHERE you.username = {username} AND you <> they
         WITH they, COLLECT(DISTINCT tag.name) AS tags
         ORDER BY SIZE(tags) DESC LIMIT 3
         RETURN they.username AS similar_user, tags
-        """
+        '''
 
-        return graph.cypher.execute(query, username=self.username)
+        return graph.run(query, username=self.username)
 
     def get_commonality_of_user(self, other):
         # Find how many of the logged-in user's posts the other user
         # has liked and which tags they've both blogged about.
-        query = """
+        query = '''
         MATCH (they:User {username: {they} })
         MATCH (you:User {username: {you} })
         OPTIONAL MATCH (they)-[:PUBLISHED]->(:Post)<-[:TAGGED]-(tag:Tag),
                        (you)-[:PUBLISHED]->(:Post)<-[:TAGGED]-(tag)
         RETURN SIZE((they)-[:LIKED]->(:Post)<-[:PUBLISHED]-(you)) AS likes,
                COLLECT(DISTINCT tag.name) AS tags
-        """
+        '''
 
-        return graph.cypher.execute(query, they=other.username, you=self.username)[0]
+        return graph.run(query, they=other.username, you=self.username).next
 
 
 def timestamp():
@@ -110,11 +114,11 @@ def date():
     return datetime.now().strftime('%Y-%m-%d')
 
 def get_todays_recent_posts():
-    query = """
+    query = '''
     MATCH (user:User)-[:PUBLISHED]->(post:Post)<-[:TAGGED]-(tag:Tag)
     WHERE post.date = {today}
     RETURN user.username AS username, post, COLLECT(tag.name) AS tags
     ORDER BY post.timestamp DESC LIMIT 5
-    """
+    '''
 
-    return graph.cypher.execute(query, today=date())
+    return graph.run(query, today=date())
