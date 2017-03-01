@@ -9,7 +9,7 @@ Homepage displays most recent posts by all users.
 Using Python 3.6.0 and Neo4j 3.1.0
 
 Required packages:
-appdirs==1.4.2
+appdirs==1.4.2<br>
 bcrypt==3.1.3
 cffi==1.9.1
 click==6.7
